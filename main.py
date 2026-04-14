@@ -1,48 +1,29 @@
-import os
-# Force Hugging Face to use our local folder BEFORE it even boots up
-os.environ["HF_HOME"] = "./hf_cache"
-
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from transformers import pipeline
 import random
-import numpy as np
 import pandas as pd
+import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
+import requests # <-- NEW IMPORT
+import os # <-- We need this to read the API token securely
 
 app = FastAPI(title="Voyage AI Recommendation Engine")
 
-# CRITICAL: Allow your React app to talk to this API
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], # We will restrict this to your Vercel link later for security
+    allow_origins=["*"], 
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# ==========================================
-# 🧠 LOAD THE ML MODEL (Do this OUTSIDE the route)
-# ==========================================
-print("Loading NLP Model... (This takes a few seconds)")
-# We use distilbert for fast sentiment analysis
-sentiment_analyzer = pipeline(
-    "sentiment-analysis", 
-    model="distilbert-base-uncased-finetuned-sst-2-english",
-    cache_dir="./hf_cache" 
-)
-print("Model Loaded!")
+# ... (Keep your UserPreferences and get_recommendations code exactly the same) ...
 
 # ==========================================
 # 🕸️ MOCK WEB SCRAPER
 # ==========================================
 def fetch_recent_reviews(place_name: str):
-    """
-    In a production app, you would replace this function with a call 
-    to the Google Places API to fetch real reviews.
-    """
-    # A mix of generic good, bad, and okay reviews to test our model
     mock_review_database = [
         f"Absolutely loved {place_name}! The views were breathtaking.",
         f"It was okay, but way too crowded.",
@@ -52,39 +33,49 @@ def fetch_recent_reviews(place_name: str):
         f"Beautiful architecture and great history.",
         f"Staff was rude, but the place itself is nice."
     ]
-    # Randomly select 3 to 5 reviews to simulate a scrape
     return random.sample(mock_review_database, k=random.randint(3, 5))
 
-
 # ==========================================
-# 🚀 THE VIBE CHECK API ENDPOINT
+# 🚀 THE NEW VIBE CHECK API ENDPOINT (Using HF API)
 # ==========================================
 class VibeRequest(BaseModel):
     place_name: str
 
 @app.post("/vibe-check")
 def vibe_check(req: VibeRequest):
-    # 1. "Scrape" the reviews
     reviews = fetch_recent_reviews(req.place_name)
     
-    # 2. Pass reviews through the HuggingFace BERT model
-    nlp_results = sentiment_analyzer(reviews)
+    # 1. Prepare the API request to Hugging Face
+    API_URL = "https://api-inference.huggingface.co/models/distilbert-base-uncased-finetuned-sst-2-english"
     
-    # 3. Calculate the "Vibe Score" (% of positive reviews)
-    positive_count = 0
-    total_score_confidence = 0
+    # Read the token from Render's environment variables
+    hf_token = os.environ.get("HUGGINGFACE_TOKEN")
+    headers = {"Authorization": f"Bearer {hf_token}"}
     
-    for result in nlp_results:
-        # result looks like: {'label': 'POSITIVE', 'score': 0.99}
-        if result['label'] == 'POSITIVE':
-            positive_count += 1
-        total_score_confidence += result['score']
-    
-    # Math to get a clean percentage (e.g., 85%)
-    vibe_percentage = (positive_count / len(reviews)) * 100
-    avg_confidence = total_score_confidence / len(reviews)
+    # 2. Call the Hugging Face Inference API
+    try:
+        response = requests.post(API_URL, headers=headers, json={"inputs": reviews})
+        nlp_results = response.json()
+        
+        # If the API is still warming up, it might return an error, handle it gracefully
+        if "error" in nlp_results:
+            return {"place": req.place_name, "vibe_score": 50, "vibe_label": "⏳ Model Warming Up", "reviews_analyzed": len(reviews)}
 
-    # Determine a vibe label
+    except Exception as e:
+        return {"place": req.place_name, "vibe_score": 50, "vibe_label": "⚠️ API Error", "reviews_analyzed": len(reviews)}
+
+    # 3. Calculate the Vibe Score based on API response
+    positive_count = 0
+    
+    # Hugging Face API returns a list of lists: [[{'label': 'POSITIVE', 'score': 0.99}, ...]]
+    for result_list in nlp_results:
+        # Get the top prediction for this specific review
+        top_prediction = result_list[0] if isinstance(result_list, list) else result_list
+        if top_prediction['label'] == 'POSITIVE':
+            positive_count += 1
+            
+    vibe_percentage = (positive_count / len(reviews)) * 100
+
     if vibe_percentage >= 75:
         vibe_label = "🔥 Immaculate Vibe"
     elif vibe_percentage >= 40:
@@ -98,56 +89,3 @@ def vibe_check(req: VibeRequest):
         "vibe_label": vibe_label,
         "reviews_analyzed": len(reviews)
     }
-
-# 1. Define the Input Data Structure from React
-class UserPreferences(BaseModel):
-    nature: float      # e.g., 1 to 5 scale
-    history: float
-    nightlife: float
-    relaxation: float
-    adventure: float
-
-# 2. Our Mock Destination Database (You can move this to a CSV later!)
-# Scores are on a scale of 1 to 5.
-destinations_data = {
-    "city": ["Kyoto, Japan", "Ibiza, Spain", "Swiss Alps", "Rome, Italy", "Bali, Indonesia", "Las Vegas, USA"],
-    "nature":     [4.0, 2.0, 5.0, 1.0, 4.5, 1.0],
-    "history":    [5.0, 1.0, 1.0, 5.0, 2.0, 1.0],
-    "nightlife":  [1.0, 5.0, 1.0, 3.0, 4.0, 5.0],
-    "relaxation": [4.0, 2.0, 3.0, 2.0, 5.0, 2.0],
-    "adventure":  [2.0, 3.0, 5.0, 1.0, 3.0, 4.0]
-}
-df = pd.DataFrame(destinations_data)
-features = ["nature", "history", "nightlife", "relaxation", "adventure"]
-
-# 3. The ML Recommendation Endpoint
-@app.post("/recommend")
-def get_recommendations(prefs: UserPreferences):
-    # Convert user input into a NumPy array
-    user_vector = np.array([[
-        prefs.nature, 
-        prefs.history, 
-        prefs.nightlife, 
-        prefs.relaxation, 
-        prefs.adventure
-    ]])
-    
-    # Extract destination vectors
-    city_vectors = df[features].values
-    
-    # Calculate Cosine Similarity
-    similarities = cosine_similarity(user_vector, city_vectors)[0]
-    
-    # Add scores to the dataframe and sort by best match
-    df['match_score'] = similarities
-    top_matches = df.sort_values(by="match_score", ascending=False).head(3)
-    
-    # Format the output to send back to React
-    results = []
-    for _, row in top_matches.iterrows():
-        results.append({
-            "destination": row["city"],
-            "match_percentage": round(row["match_score"] * 100, 1)
-        })
-        
-    return {"recommendations": results}
