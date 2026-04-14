@@ -5,11 +5,12 @@ import random
 import pandas as pd
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
-import requests # <-- NEW IMPORT
-import os # <-- We need this to read the API token securely
+import requests 
+import os 
 
-app = FastAPI(title="Voyage AI Recommendation Engine")
+app = FastAPI(title="Voyage AI ML Backend")
 
+# CRITICAL: Allow your React app to talk to this API
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"], 
@@ -18,11 +19,68 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ... (Keep your UserPreferences and get_recommendations code exactly the same) ...
+# ==========================================
+# 🌍 PART 1: DESTINATION RECOMMENDER (Cosine Similarity)
+# ==========================================
+
+# 1. Define the Input Data Structure from React
+class UserPreferences(BaseModel):
+    nature: float      
+    history: float
+    nightlife: float
+    relaxation: float
+    adventure: float
+
+# 2. Mock Destination Database (Scores on a scale of 1 to 5)
+destinations_data = {
+    "city": ["Kyoto, Japan", "Ibiza, Spain", "Swiss Alps", "Rome, Italy", "Bali, Indonesia", "Las Vegas, USA"],
+    "nature":     [4.0, 2.0, 5.0, 1.0, 4.5, 1.0],
+    "history":    [5.0, 1.0, 1.0, 5.0, 2.0, 1.0],
+    "nightlife":  [1.0, 5.0, 1.0, 3.0, 4.0, 5.0],
+    "relaxation": [4.0, 2.0, 3.0, 2.0, 5.0, 2.0],
+    "adventure":  [2.0, 3.0, 5.0, 1.0, 3.0, 4.0]
+}
+df = pd.DataFrame(destinations_data)
+features = ["nature", "history", "nightlife", "relaxation", "adventure"]
+
+# 3. The ML Recommendation Endpoint
+@app.post("/recommend")
+def get_recommendations(prefs: UserPreferences):
+    # Convert user input into a NumPy array
+    user_vector = np.array([[
+        prefs.nature, 
+        prefs.history, 
+        prefs.nightlife, 
+        prefs.relaxation, 
+        prefs.adventure
+    ]])
+    
+    # Extract destination vectors
+    city_vectors = df[features].values
+    
+    # Calculate Cosine Similarity
+    similarities = cosine_similarity(user_vector, city_vectors)[0]
+    
+    # Add scores to the dataframe and sort by best match
+    df['match_score'] = similarities
+    top_matches = df.sort_values(by="match_score", ascending=False).head(3)
+    
+    # Format the output to send back to React
+    results = []
+    for _, row in top_matches.iterrows():
+        results.append({
+            "destination": row["city"],
+            "match_percentage": round(row["match_score"] * 100, 1)
+        })
+        
+    return {"recommendations": results}
+
 
 # ==========================================
-# 🕸️ MOCK WEB SCRAPER
+# 🔮 PART 2: NLP VIBE CHECKER (Hugging Face API)
 # ==========================================
+
+# 1. Mock Web Scraper
 def fetch_recent_reviews(place_name: str):
     mock_review_database = [
         f"Absolutely loved {place_name}! The views were breathtaking.",
@@ -35,46 +93,46 @@ def fetch_recent_reviews(place_name: str):
     ]
     return random.sample(mock_review_database, k=random.randint(3, 5))
 
-# ==========================================
-# 🚀 THE NEW VIBE CHECK API ENDPOINT (Using HF API)
-# ==========================================
+# 2. Define Input Structure
 class VibeRequest(BaseModel):
     place_name: str
 
+# 3. The Vibe Check Endpoint
 @app.post("/vibe-check")
 def vibe_check(req: VibeRequest):
     reviews = fetch_recent_reviews(req.place_name)
     
-    # 1. Prepare the API request to Hugging Face
+    # Prepare the API request to Hugging Face
     API_URL = "https://api-inference.huggingface.co/models/distilbert-base-uncased-finetuned-sst-2-english"
     
     # Read the token from Render's environment variables
     hf_token = os.environ.get("HUGGINGFACE_TOKEN")
     headers = {"Authorization": f"Bearer {hf_token}"}
     
-    # 2. Call the Hugging Face Inference API
+    # Call the Hugging Face Inference API
     try:
         response = requests.post(API_URL, headers=headers, json={"inputs": reviews})
         nlp_results = response.json()
         
         # If the API is still warming up, it might return an error, handle it gracefully
-        if "error" in nlp_results:
+        if isinstance(nlp_results, dict) and "error" in nlp_results:
             return {"place": req.place_name, "vibe_score": 50, "vibe_label": "⏳ Model Warming Up", "reviews_analyzed": len(reviews)}
 
     except Exception as e:
         return {"place": req.place_name, "vibe_score": 50, "vibe_label": "⚠️ API Error", "reviews_analyzed": len(reviews)}
 
-    # 3. Calculate the Vibe Score based on API response
+    # Calculate the Vibe Score based on API response
     positive_count = 0
     
     # Hugging Face API returns a list of lists: [[{'label': 'POSITIVE', 'score': 0.99}, ...]]
-    for result_list in nlp_results:
-        # Get the top prediction for this specific review
-        top_prediction = result_list[0] if isinstance(result_list, list) else result_list
-        if top_prediction['label'] == 'POSITIVE':
-            positive_count += 1
-            
-    vibe_percentage = (positive_count / len(reviews)) * 100
+    if isinstance(nlp_results, list):
+        for result_list in nlp_results:
+            # Get the top prediction for this specific review
+            top_prediction = result_list[0] if isinstance(result_list, list) else result_list
+            if top_prediction.get('label') == 'POSITIVE':
+                positive_count += 1
+                
+    vibe_percentage = (positive_count / len(reviews)) * 100 if reviews else 0
 
     if vibe_percentage >= 75:
         vibe_label = "🔥 Immaculate Vibe"
