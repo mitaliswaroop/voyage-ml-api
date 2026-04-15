@@ -32,14 +32,15 @@ class UserPreferences(BaseModel):
     adventure: float
 
 # 2. Mock Destination Database (Scores on a scale of 1 to 5)
-destinations_data = {
-    "city": ["Kyoto, Japan", "Ibiza, Spain", "Swiss Alps", "Rome, Italy", "Bali, Indonesia", "Las Vegas, USA"],
-    "nature":     [4.0, 2.0, 5.0, 1.0, 4.5, 1.0],
-    "history":    [5.0, 1.0, 1.0, 5.0, 2.0, 1.0],
-    "nightlife":  [1.0, 5.0, 1.0, 3.0, 4.0, 5.0],
-    "relaxation": [4.0, 2.0, 3.0, 2.0, 5.0, 2.0],
-    "adventure":  [2.0, 3.0, 5.0, 1.0, 3.0, 4.0]
-}
+destinations_data = { "city": ["Tokyo", "Paris", "New York", "London", "Bangkok", "Dubai", "Singapore", "Istanbul", "Seoul", "Barcelona",
+                 "Prague", "Vienna", "Amsterdam", "Milan", "Taipei", "Berlin", "Madrid", "Athens", "Kyoto", "Rome",
+                 "Bali", "Phuket", "Swiss Alps", "Patagonia", "Queenstown", "Banff", "Iceland", "Santorini", "Maui", "Fiji"],
+        "nature": [2, 2, 1, 2, 3, 1, 3, 2, 2, 3, 2, 2, 3, 1, 4, 3, 2, 2, 4, 1, 5, 5, 5, 5, 5, 5, 5, 4, 5, 5],
+        "history": [4, 5, 3, 5, 4, 3, 2, 5, 4, 4, 5, 5, 4, 4, 3, 4, 4, 5, 5, 5, 2, 1, 1, 1, 1, 1, 1, 4, 1, 1],
+        "nightlife": [5, 4, 5, 5, 5, 4, 4, 3, 5, 5, 4, 3, 5, 4, 4, 5, 5, 3, 1, 3, 4, 5, 1, 1, 3, 1, 1, 3, 2, 2],
+        "relaxation": [3, 3, 1, 2, 4, 4, 3, 3, 2, 4, 3, 4, 3, 3, 3, 2, 3, 3, 5, 2, 5, 5, 4, 3, 2, 3, 4, 5, 5, 5],
+        "adventure": [2, 1, 2, 2, 4, 3, 2, 2, 3, 2, 1, 1, 2, 1, 4, 2, 2, 2, 2, 1, 4, 4, 5, 5, 5, 5, 5, 2, 4, 4]
+    }
 df = pd.DataFrame(destinations_data)
 features = ["nature", "history", "nightlife", "relaxation", "adventure"]
 
