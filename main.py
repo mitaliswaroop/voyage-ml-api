@@ -157,16 +157,23 @@ def vibe_check(req: VibeRequest):
     headers = {"Authorization": f"Bearer {hf_token}"}
     
     # Call the Hugging Face Inference API
-    try:
+  try:
         response = requests.post(API_URL, headers=headers, json={"inputs": reviews})
         nlp_results = response.json()
         
-        # If the API is still warming up, it might return an error, handle it gracefully
+        # Check if Hugging Face sent back an error
         if isinstance(nlp_results, dict) and "error" in nlp_results:
-            return {"place": req.place_name, "vibe_score": 50, "vibe_label": "⏳ Model Warming Up", "reviews_analyzed": len(reviews)}
+            actual_error = nlp_results["error"]
+            
+            # If it's just sleeping, tell the user to wait
+            if "loading" in actual_error.lower() or "estimated_time" in nlp_results:
+                return {"place": req.place_name, "vibe_score": 50, "vibe_label": "⏳ Waking up AI... Click again in 20s", "reviews_analyzed": len(reviews)}
+            
+            # If it's a token issue, print the REAL error to the screen!
+            return {"place": req.place_name, "vibe_score": 50, "vibe_label": f"⚠️ Error: {actual_error}", "reviews_analyzed": len(reviews)}
 
     except Exception as e:
-        return {"place": req.place_name, "vibe_score": 50, "vibe_label": "⚠️ API Error", "reviews_analyzed": len(reviews)}
+        return {"place": req.place_name, "vibe_score": 50, "vibe_label": "⚠️ Server Error", "reviews_analyzed": len(reviews)}
 
     # Calculate the Vibe Score based on API response
     positive_count = 0
