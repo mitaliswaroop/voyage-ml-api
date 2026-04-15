@@ -81,18 +81,64 @@ def get_recommendations(prefs: UserPreferences):
 # 🔮 PART 2: NLP VIBE CHECKER (Hugging Face API)
 # ==========================================
 
-# 1. Mock Web Scraper
+# ==========================================
+# 🕸️ MOCK WEB SCRAPER (Upgraded Dataset)
+# ==========================================
 def fetch_recent_reviews(place_name: str):
     mock_review_database = [
+        # --- Positives (🔥) ---
         f"Absolutely loved {place_name}! The views were breathtaking.",
-        f"It was okay, but way too crowded.",
-        f"Terrible experience at {place_name}. Overpriced and dirty.",
-        f"A must-visit! Best part of our trip.",
-        f"Not worth the hype. Skip it.",
-        f"Beautiful architecture and great history.",
-        f"Staff was rude, but the place itself is nice."
+        f"A must-visit! Best part of our entire trip.",
+        f"Beautiful architecture and incredible history. Highly recommend.",
+        f"The food around {place_name} was amazing. 10/10 experience.",
+        f"I could spend all day here. So peaceful and picturesque.",
+        f"{place_name} exceeded all our expectations. Truly magical.",
+        f"Very clean, safe, and the locals were incredibly welcoming.",
+        f"Perfect for photos! We went at sunset and it was gorgeous.",
+        f"Got there early to beat the crowds, and it was absolutely worth it.",
+        f"Such a vibrant atmosphere! Will definitely be coming back.",
+        f"A hidden gem. I'm so glad we added {place_name} to our itinerary.",
+        f"Great value for money. We spent hours exploring.",
+        f"The tour guides at {place_name} were so knowledgeable and friendly.",
+        f"Incredible energy. You can feel the history of the place.",
+        f"One of the most beautiful places I have ever seen in my life.",
+
+        # --- Mixed / Neutral (🤔) ---
+        f"It was okay, but way too crowded for my liking.",
+        f"Staff was a bit rude, but the place itself is nice.",
+        f"Beautiful to look at, but everything nearby is a tourist trap.",
+        f"Glad I saw it, but I probably wouldn't go out of my way to visit again.",
+        f"The weather was terrible when we went, which ruined the vibe of {place_name}.",
+        f"It's exactly what you expect. Nothing more, nothing less.",
+        f"Nice place, but the entrance fee is a bit steep for what you get.",
+        f"Good for a quick 30-minute stop, but don't plan your whole day around it.",
+        f"Finding parking near {place_name} was a nightmare, but the visit was decent.",
+        f"Beautiful, but undergoing a lot of construction right now.",
+        f"A bit overhyped on social media, but still a pleasant afternoon.",
+        f"Food nearby was average, but the scenery made up for it.",
+
+        # --- Negatives (🚩) ---
+        f"Terrible experience at {place_name}. Overpriced and extremely dirty.",
+        f"Not worth the hype. Skip it and go somewhere else.",
+        f"An absolute tourist trap. Everything is a scam here.",
+        f"Way too loud and crowded. We left after 10 minutes.",
+        f"Very disappointing. Looks nothing like the pictures online.",
+        f"Felt unsafe walking around {place_name} at night.",
+        f"The wait times were ridiculous. Not worth standing in line for 2 hours.",
+        f"Rude locals and terrible service everywhere we went.",
+        f"Save your money. Total waste of time.",
+        f"{place_name} is completely ruined by mass tourism.",
+        f"It smelled awful and there was trash everywhere.",
+        f"Customer service was non-existent. Completely disorganized.",
+        f"We got food poisoning from a cafe right next to {place_name}.",
+        f"Boring. There is literally nothing to do here.",
+        f"I regret adding {place_name} to our trip. Huge letdown."
     ]
-    return random.sample(mock_review_database, k=random.randint(3, 5))
+    
+    # Analyze a larger batch (10 to 15 reviews) to get a more accurate percentage
+    # (If the database happens to be smaller than the request, we cap it safely)
+    sample_size = min(len(mock_review_database), random.randint(10, 15))
+    return random.sample(mock_review_database, k=sample_size)
 
 # 2. Define Input Structure
 class VibeRequest(BaseModel):
