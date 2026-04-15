@@ -157,7 +157,7 @@ def vibe_check(req: VibeRequest):
     headers = {"Authorization": f"Bearer {hf_token}"}
     
     # Call the Hugging Face Inference API
-  try:
+    try:
         response = requests.post(API_URL, headers=headers, json={"inputs": reviews})
         nlp_results = response.json()
         
