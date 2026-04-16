@@ -141,7 +141,7 @@ def vibe_check(req: VibeRequest):
     reviews = fetch_recent_reviews(req.place_name)
     
     # 🌟 Swapped to a rock-solid, actively supported model
-    API_URL = "https://api-inference.huggingface.co/models/cardiffnlp/twitter-roberta-base-sentiment-latest"
+    API_URL = "https://router.huggingface.co/hf-inference/models/cardiffnlp/twitter-roberta-base-sentiment-latest"
     
     hf_token = os.environ.get("HUGGINGFACE_TOKEN")
     headers = {"Authorization": f"Bearer {hf_token}"}
