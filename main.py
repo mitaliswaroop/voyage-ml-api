@@ -135,25 +135,28 @@ class VibeRequest(BaseModel):
     place_name: str
 
 @app.post("/vibe-check")
+# 3. The Vibe Check Endpoint
+@app.post("/vibe-check")
 def vibe_check(req: VibeRequest):
     reviews = fetch_recent_reviews(req.place_name)
-    API_URL = "https://api-inference.huggingface.co/models/distilbert/distilbert-base-uncased-finetuned-sst-2-english"
+    
+    # 🌟 Swapped to a rock-solid, actively supported model
+    API_URL = "https://api-inference.huggingface.co/models/cardiffnlp/twitter-roberta-base-sentiment-latest"
+    
     hf_token = os.environ.get("HUGGINGFACE_TOKEN")
     headers = {"Authorization": f"Bearer {hf_token}"}
     
     try:
         response = requests.post(API_URL, headers=headers, json={"inputs": reviews})
         
-        # If the API throws a 503 error (Bad Gateway/HTML), this will trigger the except block
         response.raise_for_status() 
-        
         nlp_results = response.json()
         
         if isinstance(nlp_results, dict) and "error" in nlp_results:
             actual_error = nlp_results["error"]
             if "loading" in actual_error.lower() or "estimated_time" in nlp_results:
                 return {"place": req.place_name, "vibe_score": 50, "vibe_label": "⏳ Waking up AI... Click again in 20s", "reviews_analyzed": len(reviews)}
-            return {"place": req.place_name, "vibe_score": 50, "vibe_label": f"⚠️ Error: {actual_error}", "reviews_analyzed": len(reviews)}
+            return {"place": req.place_name, "vibe_score": 50, "vibe_label": f"⚠️ API Error: {actual_error}", "reviews_analyzed": len(reviews)}
 
     except Exception as e:
         return {
@@ -167,7 +170,8 @@ def vibe_check(req: VibeRequest):
     if isinstance(nlp_results, list):
         for result_list in nlp_results:
             top_prediction = result_list[0] if isinstance(result_list, list) else result_list
-            if top_prediction.get('label') == 'POSITIVE':
+            # The new model uses lowercase 'positive'
+            if top_prediction.get('label', '').lower() == 'positive':
                 positive_count += 1
                 
     vibe_percentage = (positive_count / len(reviews)) * 100 if reviews else 0
