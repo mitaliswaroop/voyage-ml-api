@@ -137,7 +137,7 @@ class VibeRequest(BaseModel):
 @app.post("/vibe-check")
 def vibe_check(req: VibeRequest):
     reviews = fetch_recent_reviews(req.place_name)
-    API_URL = "https://api-inference.huggingface.co/models/distilbert-base-uncased-finetuned-sst-2-english"
+    API_URL = "https://api-inference.huggingface.co/models/distilbert/distilbert-base-uncased-finetuned-sst-2-english"
     hf_token = os.environ.get("HUGGINGFACE_TOKEN")
     headers = {"Authorization": f"Bearer {hf_token}"}
     
