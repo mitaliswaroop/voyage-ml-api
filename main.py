@@ -172,8 +172,29 @@ def vibe_check(req: VibeRequest):
             # If it's a token issue, print the REAL error to the screen!
             return {"place": req.place_name, "vibe_score": 50, "vibe_label": f"⚠️ Error: {actual_error}", "reviews_analyzed": len(reviews)}
 
+   try:
+        response = requests.post(API_URL, headers=headers, json={"inputs": reviews})
+        nlp_results = response.json()
+        
+        # Check if Hugging Face sent back an error
+        if isinstance(nlp_results, dict) and "error" in nlp_results:
+            actual_error = nlp_results["error"]
+            
+            # If it's just sleeping, tell the user to wait
+            if "loading" in actual_error.lower() or "estimated_time" in nlp_results:
+                return {"place": req.place_name, "vibe_score": 50, "vibe_label": "⏳ Waking up AI... Click again in 20s", "reviews_analyzed": len(reviews)}
+            
+            # If it's a token issue, print the REAL error to the screen!
+            return {"place": req.place_name, "vibe_score": 50, "vibe_label": f"⚠️ Error: {actual_error}", "reviews_analyzed": len(reviews)}
+
     except Exception as e:
-        return {"place": req.place_name, "vibe_score": 50, "vibe_label": "⚠️ Server Error", "reviews_analyzed": len(reviews)}
+        # We are injecting str(e) so you can see the EXACT Python crash message!
+        return {
+            "place": req.place_name, 
+            "vibe_score": 50, 
+            "vibe_label": f"⚠️ Crash: {str(e)}", 
+            "reviews_analyzed": len(reviews)
+        }
 
     # Calculate the Vibe Score based on API response
     positive_count = 0
