@@ -172,7 +172,7 @@ def vibe_check(req: VibeRequest):
             # If it's a token issue, print the REAL error to the screen!
             return {"place": req.place_name, "vibe_score": 50, "vibe_label": f"⚠️ Error: {actual_error}", "reviews_analyzed": len(reviews)}
 
-   try:
+    try:
         response = requests.post(API_URL, headers=headers, json={"inputs": reviews})
         nlp_results = response.json()
         
@@ -195,6 +195,7 @@ def vibe_check(req: VibeRequest):
             "vibe_label": f"⚠️ Crash: {str(e)}", 
             "reviews_analyzed": len(reviews)
         }
+
 
     # Calculate the Vibe Score based on API response
     positive_count = 0
